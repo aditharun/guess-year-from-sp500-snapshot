@@ -64,34 +64,6 @@ h1 {
   font-size: 0.98rem;
 }
 
-.sort {
-  display: flex;
-  margin-top: 12px;
-}
-
-.sort button {
-  flex: 1;
-  min-height: 44px;
-  margin: 0;
-  padding: 0 8px;
-  border: 1px solid var(--ink);
-  border-left-width: 0;
-  background: transparent;
-  color: var(--ink);
-  font-family: var(--mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  touch-action: manipulation;
-}
-
-.sort button:first-child { border-left-width: 1px; }
-
-.sort button[aria-pressed="true"] {
-  background: var(--ink);
-  color: var(--paper);
-}
-
 main {
   overflow: auto;
   overscroll-behavior: contain;
@@ -105,6 +77,44 @@ main {
 
 .status[hidden] { display: none; }
 
+.cols,
+#tape li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.6rem 5.5rem;
+  column-gap: 8px;
+  align-items: baseline;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.cols {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--paper);
+  border-bottom: 1px solid var(--ink);
+}
+
+.cols button {
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: left;
+  touch-action: manipulation;
+}
+
+.cols button[data-sort="cap"],
+.cols button[data-sort="price"] { text-align: right; }
+
+.cols button[aria-pressed="true"] { color: var(--ink); }
+
 #tape {
   list-style: none;
   margin: 0;
@@ -112,18 +122,9 @@ main {
 }
 
 #tape li {
-  display: grid;
-  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
-  column-gap: 8px;
-  align-items: baseline;
-  padding: 9px 16px 8px;
+  padding-top: 9px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--rule);
-}
-
-.rank {
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  color: var(--faint);
 }
 
 .name {
@@ -132,10 +133,12 @@ main {
   overflow-wrap: anywhere;
 }
 
+.cap,
 .price {
   font-family: var(--mono);
-  font-size: 0.92rem;
+  font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
+  text-align: right;
   white-space: nowrap;
 }
 

@@ -22,7 +22,7 @@
   var resultAside = document.getElementById("result-aside");
   var resultYours = document.getElementById("result-yours");
   var againBtn = document.getElementById("again");
-  var sortButtons = Array.prototype.slice.call(document.querySelectorAll(".sort button"));
+  var sortButtons = Array.prototype.slice.call(document.querySelectorAll(".cols button"));
 
   var state = {
     ids: [],
@@ -30,6 +30,7 @@
     rows: [],
     iso: "",
     sort: "cap",
+    dir: "desc",
     year: null,
     yearMin: 1996,
     yearMax: 2026,
@@ -81,55 +82,81 @@
     });
   }
 
-  function sortPhrase() {
-    if (state.sort === "name") return "Alphabetical.";
-    if (state.sort === "price") return "Highest share price first.";
-    return "Largest companies first.";
+  function formatCap(millions) {
+    var text;
+    if (millions >= 1e6) text = (millions / 1e6).toFixed(2) + "T";
+    else if (millions >= 100000) text = (millions / 1000).toFixed(0) + "B";
+    else if (millions >= 10000) text = (millions / 1000).toFixed(1) + "B";
+    else if (millions >= 1000) text = (millions / 1000).toFixed(2) + "B";
+    else text = Math.round(millions) + "M";
+    return "$" + text;
   }
 
   function setLede() {
-    var count = state.rows.length ? state.rows.length + " names. " : "";
-    lede.textContent = count + sortPhrase();
+    lede.textContent = state.rows.length ? state.rows.length + " names." : "";
   }
 
   function sortedRows() {
     var rows = state.rows.slice();
-    if (state.sort === "name") {
-      rows.sort(function (a, b) {
-        return a.name.localeCompare(b.name) || b.cap - a.cap;
-      });
-    } else if (state.sort === "price") {
-      rows.sort(function (a, b) {
-        return b.price - a.price || a.name.localeCompare(b.name);
-      });
-    } else {
-      rows.sort(function (a, b) {
-        return b.cap - a.cap || a.name.localeCompare(b.name);
-      });
-    }
+    var sign = state.dir === "asc" ? 1 : -1;
+    rows.sort(function (a, b) {
+      var cmp = 0;
+      if (state.sort === "name") cmp = a.name.localeCompare(b.name);
+      else if (state.sort === "price") cmp = a.price - b.price;
+      else cmp = a.cap - b.cap;
+      if (cmp) return cmp * sign;
+      return a.name.localeCompare(b.name);
+    });
     return rows;
+  }
+
+  function syncSortHeaders() {
+    sortButtons.forEach(function (button) {
+      var key = button.dataset.sort;
+      var active = key === state.sort;
+      var ascending = state.dir === "asc";
+      button.setAttribute("aria-pressed", String(active));
+      button.setAttribute("aria-sort", active ? (ascending ? "ascending" : "descending") : "none");
+      var dir = button.querySelector(".dir");
+      if (!dir) {
+        dir = document.createElement("span");
+        dir.className = "dir";
+        dir.setAttribute("aria-hidden", "true");
+        button.appendChild(document.createTextNode(" "));
+        button.appendChild(dir);
+      }
+      dir.textContent = active ? (ascending ? "↑" : "↓") : "";
+      var meaning = {
+        name: ascending ? "Name, A to Z" : "Name, Z to A",
+        cap: ascending ? "Market cap, low to high" : "Market cap, high to low",
+        price: ascending ? "Share price, low to high" : "Share price, high to low"
+      };
+      var idle = { name: "name", cap: "market cap", price: "share price" };
+      button.setAttribute("aria-label", active ? meaning[key] + ". Activate to reverse." : "Sort by " + idle[key]);
+    });
   }
 
   function renderTape() {
     var rows = sortedRows();
     var fragment = document.createDocumentFragment();
-    rows.forEach(function (row, index) {
+    rows.forEach(function (row) {
       var li = document.createElement("li");
-      var rank = document.createElement("span");
       var name = document.createElement("span");
+      var cap = document.createElement("span");
       var price = document.createElement("span");
-      rank.className = "rank";
       name.className = "name";
+      cap.className = "cap";
       price.className = "price";
-      rank.textContent = String(index + 1);
       name.textContent = row.name;
+      cap.textContent = formatCap(row.cap);
       price.textContent = formatPrice(row.price);
-      li.appendChild(rank);
       li.appendChild(name);
+      li.appendChild(cap);
       li.appendChild(price);
       fragment.appendChild(li);
     });
     tape.replaceChildren(fragment);
+    syncSortHeaders();
     setLede();
   }
 
@@ -323,9 +350,8 @@
     tape.replaceChildren();
     resetGuess();
     state.sort = "cap";
-    sortButtons.forEach(function (button) {
-      button.setAttribute("aria-pressed", String(button.dataset.sort === "cap"));
-    });
+    state.dir = "desc";
+    syncSortHeaders();
     var loaded = null;
     var attempts = 0;
     while (!loaded && attempts < 4) {
@@ -388,11 +414,16 @@
 
   sortButtons.forEach(function (button) {
     button.addEventListener("click", function () {
-      state.sort = button.dataset.sort;
-      sortButtons.forEach(function (other) {
-        other.setAttribute("aria-pressed", String(other === button));
-      });
-      if (state.rows.length) renderTape();
+      var key = button.dataset.sort;
+      if (state.sort === key) state.dir = state.dir === "desc" ? "asc" : "desc";
+      else {
+        state.sort = key;
+        state.dir = key === "name" ? "asc" : "desc";
+      }
+      if (state.rows.length) {
+        renderTape();
+        board.scrollTop = 0;
+      } else syncSortHeaders();
     });
   });
 

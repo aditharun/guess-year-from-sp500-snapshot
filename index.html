@@ -16,13 +16,13 @@
       <p class="kicker">S&amp;P 500</p>
       <h1>The Tape</h1>
       <p class="lede" id="lede">A real session from 1996 on.</p>
-      <div class="sort" role="group" aria-label="Sort the tape">
-        <button type="button" data-sort="cap" aria-pressed="true">Cap</button>
-        <button type="button" data-sort="name" aria-pressed="false">Name</button>
-        <button type="button" data-sort="price" aria-pressed="false">Price</button>
-      </div>
     </header>
     <main id="board">
+      <div class="cols" role="group" aria-label="Sort the tape">
+        <button type="button" data-sort="name" data-label="Name" aria-sort="none">Name</button>
+        <button type="button" data-sort="cap" data-label="Cap" aria-sort="descending" aria-pressed="true">Cap</button>
+        <button type="button" data-sort="price" data-label="Price" aria-sort="none">Price</button>
+      </div>
       <p id="status" class="status" role="status">Pulling a session…</p>
       <ol id="tape"></ol>
     </main>
