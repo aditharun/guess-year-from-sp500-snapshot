@@ -28,10 +28,12 @@
     </main>
     <form id="guess" class="dock" autocomplete="off">
       <div id="pickers">
-        <fieldset>
-          <legend>Year</legend>
-          <div class="years" id="years"></div>
-        </fieldset>
+        <label class="year-hint" id="year-hint" for="year">Pick a year from 1996 through 2026.</label>
+        <div class="year-field">
+          <input id="year" name="tape-year" type="text" inputmode="numeric" maxlength="4" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="Type a year" aria-autocomplete="list" aria-controls="year-list" aria-expanded="false" role="combobox">
+          <div id="year-list" class="year-list" role="listbox" hidden></div>
+        </div>
+        <p class="year-note" id="year-note" hidden>Stay between 1996 and 2026.</p>
         <button type="submit" id="lock" disabled>Lock in this year</button>
       </div>
       <div id="result" class="result" hidden>

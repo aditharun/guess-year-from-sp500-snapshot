@@ -9,7 +9,10 @@
   var board = document.getElementById("board");
   var tape = document.getElementById("tape");
   var form = document.getElementById("guess");
-  var yearsEl = document.getElementById("years");
+  var yearHint = document.getElementById("year-hint");
+  var yearInput = document.getElementById("year");
+  var yearList = document.getElementById("year-list");
+  var yearNote = document.getElementById("year-note");
   var lockBtn = document.getElementById("lock");
   var pickers = document.getElementById("pickers");
   var result = document.getElementById("result");
@@ -28,7 +31,9 @@
     iso: "",
     sort: "cap",
     year: null,
-    years: [],
+    yearMin: 1996,
+    yearMax: 2026,
+    activeYear: null,
     locked: false,
     busy: false
   };
@@ -141,22 +146,100 @@
     lockBtn.disabled = state.locked || !state.year;
   }
 
-  function pressOnly(container, value) {
-    Array.prototype.forEach.call(container.querySelectorAll("button"), function (button) {
-      button.setAttribute("aria-pressed", String(button.dataset.value === String(value)));
-    });
+  function inRange(year) {
+    return year >= state.yearMin && year <= state.yearMax;
   }
 
-  function buildPickers() {
-    yearsEl.replaceChildren();
-    state.years.forEach(function (y) {
-      var yearBtn = document.createElement("button");
-      yearBtn.type = "button";
-      yearBtn.dataset.value = String(y);
-      yearBtn.textContent = String(y);
-      yearBtn.setAttribute("aria-pressed", "false");
-      yearsEl.appendChild(yearBtn);
+  function parseYear(text) {
+    if (!/^\d{4}$/.test(text)) return null;
+    var year = Number(text);
+    return inRange(year) ? year : null;
+  }
+
+  function matchingYears(query) {
+    var years = [];
+    var y;
+    for (y = state.yearMin; y <= state.yearMax; y += 1) {
+      if (!query || String(y).indexOf(query) === 0) years.push(y);
+    }
+    return years;
+  }
+
+  function closeList() {
+    yearList.hidden = true;
+    yearList.replaceChildren();
+    yearInput.setAttribute("aria-expanded", "false");
+    yearInput.removeAttribute("aria-activedescendant");
+    state.activeYear = null;
+  }
+
+  function renderList() {
+    if (state.locked || document.activeElement !== yearInput) {
+      closeList();
+      return;
+    }
+    var query = yearInput.value;
+    var years = matchingYears(query);
+    if (!years.length) {
+      closeList();
+      return;
+    }
+    if (state.activeYear === null || years.indexOf(state.activeYear) === -1) {
+      state.activeYear = parseYear(query) || years[0];
+    }
+    var fragment = document.createDocumentFragment();
+    years.forEach(function (year) {
+      var option = document.createElement("button");
+      option.type = "button";
+      option.id = "year-opt-" + year;
+      option.dataset.year = String(year);
+      option.setAttribute("role", "option");
+      option.textContent = String(year);
+      option.setAttribute("aria-selected", String(year === state.activeYear));
+      fragment.appendChild(option);
     });
+    yearList.replaceChildren(fragment);
+    yearList.hidden = false;
+    yearInput.setAttribute("aria-expanded", "true");
+    yearInput.setAttribute("aria-activedescendant", "year-opt-" + state.activeYear);
+    var active = document.getElementById("year-opt-" + state.activeYear);
+    if (!active) return;
+    if (active.offsetTop < yearList.scrollTop) yearList.scrollTop = active.offsetTop;
+    else if (active.offsetTop + active.offsetHeight > yearList.scrollTop + yearList.clientHeight) {
+      yearList.scrollTop = active.offsetTop + active.offsetHeight - yearList.clientHeight;
+    }
+  }
+
+  function applyInput() {
+    var digits = yearInput.value.replace(/\D/g, "").slice(0, 4);
+    if (yearInput.value !== digits) yearInput.value = digits;
+    var year = parseYear(digits);
+    state.year = year;
+    var rejected = digits.length === 4 && year === null;
+    yearInput.setAttribute("aria-invalid", rejected ? "true" : "false");
+    yearNote.hidden = !rejected;
+    syncLock();
+    renderList();
+  }
+
+  function chooseYear(year) {
+    if (!inRange(year) || state.locked) return;
+    yearInput.value = String(year);
+    state.year = year;
+    yearInput.setAttribute("aria-invalid", "false");
+    yearNote.hidden = true;
+    closeList();
+    syncLock();
+  }
+
+  function moveActive(step) {
+    var years = matchingYears(yearInput.value);
+    if (!years.length) return;
+    var index = years.indexOf(state.activeYear);
+    if (index < 0) index = 0;
+    else index = (index + step + years.length) % years.length;
+    state.activeYear = years[index];
+    renderList();
   }
 
   function distanceLine(delta) {
@@ -194,8 +277,12 @@
 
   function resetGuess() {
     state.year = null;
+    state.activeYear = null;
     state.locked = false;
-    pressOnly(yearsEl, "");
+    yearInput.value = "";
+    yearInput.setAttribute("aria-invalid", "false");
+    yearNote.hidden = true;
+    closeList();
     pickers.hidden = false;
     result.hidden = true;
     resultWhen.textContent = "";
@@ -264,12 +351,39 @@
     board.scrollTop = 0;
   }
 
-  yearsEl.addEventListener("click", function (event) {
-    var button = event.target.closest("button");
-    if (!button || state.locked) return;
-    state.year = Number(button.dataset.value);
-    pressOnly(yearsEl, state.year);
-    syncLock();
+  yearInput.addEventListener("input", applyInput);
+
+  yearInput.addEventListener("focus", function () {
+    state.activeYear = state.year;
+    renderList();
+  });
+
+  yearInput.addEventListener("blur", function () {
+    closeList();
+  });
+
+  yearInput.addEventListener("keydown", function (event) {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (yearList.hidden) renderList();
+      else moveActive(event.key === "ArrowDown" ? 1 : -1);
+      return;
+    }
+    if (event.key === "Escape") {
+      closeList();
+      return;
+    }
+    if (event.key === "Enter" && !yearList.hidden && state.activeYear !== null && parseYear(yearInput.value) === null) {
+      event.preventDefault();
+      chooseYear(state.activeYear);
+    }
+  });
+
+  yearList.addEventListener("pointerdown", function (event) {
+    var option = event.target.closest("button");
+    if (!option) return;
+    event.preventDefault();
+    chooseYear(Number(option.dataset.year));
   });
 
   sortButtons.forEach(function (button) {
@@ -301,8 +415,11 @@
     if (!state.ids.length) throw new Error("No sessions");
     var seen = {};
     state.ids.forEach(function (id) { seen[Number(id.slice(0, 4))] = true; });
-    state.years = Object.keys(seen).map(Number).sort(function (a, b) { return a - b; });
-    buildPickers();
+    var sessionYears = Object.keys(seen).map(Number).sort(function (a, b) { return a - b; });
+    state.yearMin = sessionYears[0];
+    state.yearMax = sessionYears[sessionYears.length - 1];
+    yearHint.textContent = "Pick a year from " + state.yearMin + " through " + state.yearMax + ".";
+    yearNote.textContent = "Stay between " + state.yearMin + " and " + state.yearMax + ".";
     await deal();
   }
 
