@@ -163,10 +163,6 @@
       yearBtn.setAttribute("aria-pressed", "false");
       yearsEl.appendChild(yearBtn);
     }
-    var midpoint = yearsEl.children[Math.floor(yearsEl.children.length / 2)];
-    if (midpoint) {
-      yearsEl.scrollLeft = midpoint.offsetLeft - (yearsEl.clientWidth - midpoint.offsetWidth) / 2;
-    }
     MONTHS.forEach(function (label, index) {
       var monthBtn = document.createElement("button");
       monthBtn.type = "button";
@@ -338,8 +334,9 @@
     var ids = Array.isArray(manifest.snapshots) ? manifest.snapshots : [];
     state.ids = ids.filter(function (id) { return /^\d{4}-\d{2}-\d{2}$/.test(id); });
     if (!state.ids.length) throw new Error("No sessions");
-    if (/^\d{4}/.test(manifest.from || "")) state.yearMin = Number(String(manifest.from).slice(0, 4));
-    if (/^\d{4}/.test(manifest.to || "")) state.yearMax = Number(String(manifest.to).slice(0, 4));
+    var sessionYears = state.ids.map(function (id) { return Number(id.slice(0, 4)); });
+    state.yearMin = Math.min.apply(null, sessionYears);
+    state.yearMax = Math.max.apply(null, sessionYears);
     buildPickers();
     await deal();
   }

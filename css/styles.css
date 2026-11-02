@@ -143,7 +143,7 @@ main {
   border-top: 1px solid var(--ink);
   background: var(--paper);
   padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
-  max-height: 46dvh;
+  max-height: 58dvh;
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -171,16 +171,7 @@ legend {
   gap: 6px;
 }
 
-.years {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  scrollbar-width: none;
-  padding-bottom: 2px;
-}
-
-.years::-webkit-scrollbar { display: none; }
+.years { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
 
 .months { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 
@@ -194,6 +185,7 @@ legend {
 
 .years button,
 .months button {
+  min-width: 0;
   min-height: 44px;
   padding: 0 2px;
   border: 1px solid var(--rule);
@@ -204,10 +196,8 @@ legend {
 }
 
 .years button {
-  flex: 0 0 auto;
-  min-width: 72px;
-  scroll-snap-align: center;
-  padding: 0 10px;
+  padding: 0;
+  font-size: 0.72rem;
 }
 
 .years button[aria-pressed="true"],
@@ -298,5 +288,7 @@ legend {
 
 @media (max-width: 359px) {
   .months { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .years button,
+  .months button { min-height: 36px; }
   h1 { font-size: 1.85rem; }
 }
