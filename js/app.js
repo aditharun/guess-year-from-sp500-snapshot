@@ -4,7 +4,6 @@
   var MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   var WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-  var lede = document.getElementById("lede");
   var statusEl = document.getElementById("status");
   var board = document.getElementById("board");
   var tape = document.getElementById("tape");
@@ -19,8 +18,6 @@
   var resultWhen = document.getElementById("result-when");
   var resultDay = document.getElementById("result-day");
   var resultDistance = document.getElementById("result-distance");
-  var resultAside = document.getElementById("result-aside");
-  var resultYours = document.getElementById("result-yours");
   var againBtn = document.getElementById("again");
   var sortButtons = Array.prototype.slice.call(document.querySelectorAll(".cols button"));
 
@@ -92,10 +89,6 @@
     return "$" + text;
   }
 
-  function setLede() {
-    lede.textContent = state.rows.length ? state.rows.length + " names." : "";
-  }
-
   function sortedRows() {
     var rows = state.rows.slice();
     var sign = state.dir === "asc" ? 1 : -1;
@@ -157,7 +150,6 @@
     });
     tape.replaceChildren(fragment);
     syncSortHeaders();
-    setLede();
   }
 
   function asRow(raw) {
@@ -269,19 +261,10 @@
     renderList();
   }
 
-  function distanceLine(delta) {
-    var abs = Math.abs(delta);
-    if (delta === 0) return "Exact year.";
-    var word = abs === 1 ? "year" : "years";
-    return abs + " " + word + (delta > 0 ? " late." : " early.");
-  }
-
-  function asideLine(abs) {
-    if (abs === 0) return "You were on the floor.";
-    if (abs === 1) return "A year off. The tape still rhymes.";
-    if (abs <= 3) return "Same era, different vintage.";
-    if (abs <= 7) return "Leadership had time to change.";
-    return "That was a different era.";
+  function offLine(abs) {
+    if (abs === 0) return "Exact year";
+    if (abs === 1) return "You were 1 year off";
+    return "You were " + abs + " years off";
   }
 
   function reveal() {
@@ -289,14 +272,11 @@
     if (!actual) return;
     var actualYear = actual.getFullYear();
     var actualMonth = actual.getMonth();
-    var delta = state.year - actualYear;
-    var abs = Math.abs(delta);
+    var abs = Math.abs(state.year - actualYear);
     state.locked = true;
     resultWhen.textContent = String(actualYear);
     resultDay.textContent = WEEKDAYS[actual.getDay()] + ", " + MONTHS_FULL[actualMonth] + " " + actual.getDate();
-    resultDistance.textContent = distanceLine(delta);
-    resultAside.textContent = asideLine(abs);
-    resultYours.textContent = "You said " + state.year + ".";
+    resultDistance.textContent = offLine(abs);
     pickers.hidden = true;
     result.hidden = false;
     syncLock();
@@ -315,8 +295,6 @@
     resultWhen.textContent = "";
     resultDay.textContent = "";
     resultDistance.textContent = "";
-    resultAside.textContent = "";
-    resultYours.textContent = "";
     syncLock();
   }
 

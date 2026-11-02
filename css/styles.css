@@ -64,6 +64,8 @@ h1 {
   font-size: 0.98rem;
 }
 
+.lede + .lede { margin-top: 2px; }
+
 main {
   overflow: auto;
   overscroll-behavior: contain;
@@ -190,18 +192,13 @@ main {
 }
 
 .year-list {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: calc(100% + 4px);
-  max-height: min(220px, 38dvh);
-  margin: 0;
+  max-height: min(180px, 32dvh);
+  margin: 4px 0 0;
   padding: 4px;
   overflow: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--ink);
   background: var(--paper);
-  box-shadow: 0 -8px 20px rgba(27, 23, 20, 0.08);
 }
 
 .year-list button {
@@ -278,9 +275,7 @@ main {
 }
 
 .session,
-.distance,
-.aside,
-.yours {
+.distance {
   margin: 6px 0 0;
 }
 
@@ -288,14 +283,6 @@ main {
 .distance {
   font-family: var(--mono);
   font-size: 0.86rem;
-}
-
-.aside { color: var(--faint); }
-
-.yours {
-  margin-top: 4px;
-  color: var(--faint);
-  font-size: 0.95rem;
 }
 
 :focus-visible {
