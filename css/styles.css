@@ -165,43 +165,31 @@ legend {
   color: var(--faint);
 }
 
-.years,
-.months {
+.years {
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
 }
 
-.years { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
-
-.months { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-
 .years button,
-.months button,
 #lock,
 #again {
   touch-action: manipulation;
   font: inherit;
 }
 
-.years button,
-.months button {
+.years button {
   min-width: 0;
   min-height: 44px;
-  padding: 0 2px;
+  padding: 0;
   border: 1px solid var(--rule);
   background: transparent;
   color: var(--ink);
   font-family: var(--mono);
-  font-size: 0.82rem;
-}
-
-.years button {
-  padding: 0;
   font-size: 0.72rem;
 }
 
-.years button[aria-pressed="true"],
-.months button[aria-pressed="true"] {
+.years button[aria-pressed="true"] {
   background: var(--ink);
   color: var(--paper);
   border-color: var(--ink);
@@ -287,8 +275,6 @@ legend {
 }
 
 @media (max-width: 359px) {
-  .months { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .years button,
-  .months button { min-height: 36px; }
+  .years button { min-height: 36px; }
   h1 { font-size: 1.85rem; }
 }

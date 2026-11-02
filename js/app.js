@@ -1,7 +1,6 @@
 (function () {
   "use strict";
 
-  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   var MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   var WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -11,7 +10,6 @@
   var tape = document.getElementById("tape");
   var form = document.getElementById("guess");
   var yearsEl = document.getElementById("years");
-  var monthsEl = document.getElementById("months");
   var lockBtn = document.getElementById("lock");
   var pickers = document.getElementById("pickers");
   var result = document.getElementById("result");
@@ -30,11 +28,9 @@
     iso: "",
     sort: "cap",
     year: null,
-    month: null,
+    years: [],
     locked: false,
-    busy: false,
-    yearMin: 2011,
-    yearMax: 2026
+    busy: false
   };
 
   function asset(path) {
@@ -142,7 +138,7 @@
   }
 
   function syncLock() {
-    lockBtn.disabled = state.locked || !state.year || !state.month;
+    lockBtn.disabled = state.locked || !state.year;
   }
 
   function pressOnly(container, value) {
@@ -153,49 +149,28 @@
 
   function buildPickers() {
     yearsEl.replaceChildren();
-    monthsEl.replaceChildren();
-    var y;
-    for (y = state.yearMin; y <= state.yearMax; y += 1) {
+    state.years.forEach(function (y) {
       var yearBtn = document.createElement("button");
       yearBtn.type = "button";
       yearBtn.dataset.value = String(y);
       yearBtn.textContent = String(y);
       yearBtn.setAttribute("aria-pressed", "false");
       yearsEl.appendChild(yearBtn);
-    }
-    MONTHS.forEach(function (label, index) {
-      var monthBtn = document.createElement("button");
-      monthBtn.type = "button";
-      monthBtn.dataset.value = String(index + 1);
-      monthBtn.textContent = label;
-      monthBtn.setAttribute("aria-pressed", "false");
-      monthsEl.appendChild(monthBtn);
     });
   }
 
-  function spanWords(abs) {
-    var years = Math.floor(abs / 12);
-    var months = abs % 12;
-    var yearText = years === 1 ? "1 year" : years + " years";
-    var monthText = months === 1 ? "1 month" : months + " months";
-    if (years && months) return yearText + " and " + monthText;
-    if (years) return yearText;
-    return monthText;
-  }
-
   function distanceLine(delta) {
-    if (delta === 0) return "Exact month.";
-    return spanWords(Math.abs(delta)) + (delta > 0 ? " late." : " early.");
+    var abs = Math.abs(delta);
+    if (delta === 0) return "Exact year.";
+    var word = abs === 1 ? "year" : "years";
+    return abs + " " + word + (delta > 0 ? " late." : " early.");
   }
 
   function asideLine(abs) {
     if (abs === 0) return "You were on the floor.";
-    if (abs === 1) return "Close enough to smell the ink.";
-    if (abs <= 3) return "Same season of the market.";
-    if (abs <= 6) return "Same chapter, different page.";
-    if (abs <= 12) return "Within a year. The tape still rhymes.";
-    if (abs <= 24) return "A different year, a familiar market.";
-    if (abs <= 48) return "Leadership had time to change.";
+    if (abs === 1) return "A year off. The tape still rhymes.";
+    if (abs <= 3) return "Same era, different vintage.";
+    if (abs <= 7) return "Leadership had time to change.";
     return "That was a different era.";
   }
 
@@ -203,15 +178,15 @@
     var actual = parseISODate(state.iso);
     if (!actual) return;
     var actualYear = actual.getFullYear();
-    var actualMonth = actual.getMonth() + 1;
-    var delta = (state.year * 12 + (state.month - 1)) - (actualYear * 12 + (actualMonth - 1));
+    var actualMonth = actual.getMonth();
+    var delta = state.year - actualYear;
     var abs = Math.abs(delta);
     state.locked = true;
-    resultWhen.textContent = MONTHS_FULL[actualMonth - 1] + " " + actualYear;
-    resultDay.textContent = WEEKDAYS[actual.getDay()] + ", " + MONTHS[actualMonth - 1] + " " + actual.getDate();
+    resultWhen.textContent = String(actualYear);
+    resultDay.textContent = WEEKDAYS[actual.getDay()] + ", " + MONTHS_FULL[actualMonth] + " " + actual.getDate();
     resultDistance.textContent = distanceLine(delta);
     resultAside.textContent = asideLine(abs);
-    resultYours.textContent = "You said " + MONTHS_FULL[state.month - 1] + " " + state.year + ".";
+    resultYours.textContent = "You said " + state.year + ".";
     pickers.hidden = true;
     result.hidden = false;
     syncLock();
@@ -219,10 +194,8 @@
 
   function resetGuess() {
     state.year = null;
-    state.month = null;
     state.locked = false;
     pressOnly(yearsEl, "");
-    pressOnly(monthsEl, "");
     pickers.hidden = false;
     result.hidden = true;
     resultWhen.textContent = "";
@@ -299,14 +272,6 @@
     syncLock();
   });
 
-  monthsEl.addEventListener("click", function (event) {
-    var button = event.target.closest("button");
-    if (!button || state.locked) return;
-    state.month = Number(button.dataset.value);
-    pressOnly(monthsEl, state.month);
-    syncLock();
-  });
-
   sortButtons.forEach(function (button) {
     button.addEventListener("click", function () {
       state.sort = button.dataset.sort;
@@ -319,7 +284,7 @@
 
   form.addEventListener("submit", function (event) {
     event.preventDefault();
-    if (state.locked || !state.year || !state.month || !state.iso) return;
+    if (state.locked || !state.year || !state.iso) return;
     reveal();
   });
 
@@ -334,9 +299,9 @@
     var ids = Array.isArray(manifest.snapshots) ? manifest.snapshots : [];
     state.ids = ids.filter(function (id) { return /^\d{4}-\d{2}-\d{2}$/.test(id); });
     if (!state.ids.length) throw new Error("No sessions");
-    var sessionYears = state.ids.map(function (id) { return Number(id.slice(0, 4)); });
-    state.yearMin = Math.min.apply(null, sessionYears);
-    state.yearMax = Math.max.apply(null, sessionYears);
+    var seen = {};
+    state.ids.forEach(function (id) { seen[Number(id.slice(0, 4))] = true; });
+    state.years = Object.keys(seen).map(Number).sort(function (a, b) { return a - b; });
     buildPickers();
     await deal();
   }

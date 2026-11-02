@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f3eee4">
-  <meta name="description" content="Guess the month and year of a real S&amp;P 500 session from the companies and their share prices.">
+  <meta name="description" content="Guess the year of a real S&amp;P 500 session from the companies and their share prices.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; object-src 'none'">
   <title>The Tape</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -15,7 +15,7 @@
     <header>
       <p class="kicker">S&amp;P 500</p>
       <h1>The Tape</h1>
-      <p class="lede" id="lede">A real session from the last fifteen years.</p>
+      <p class="lede" id="lede">A real session from 1996 on.</p>
       <div class="sort" role="group" aria-label="Sort the tape">
         <button type="button" data-sort="cap" aria-pressed="true">Cap</button>
         <button type="button" data-sort="name" aria-pressed="false">Name</button>
@@ -32,11 +32,7 @@
           <legend>Year</legend>
           <div class="years" id="years"></div>
         </fieldset>
-        <fieldset>
-          <legend>Month</legend>
-          <div class="months" id="months"></div>
-        </fieldset>
-        <button type="submit" id="lock" disabled>Lock in this month</button>
+        <button type="submit" id="lock" disabled>Lock in this year</button>
       </div>
       <div id="result" class="result" hidden>
         <p class="when" id="result-when"></p>

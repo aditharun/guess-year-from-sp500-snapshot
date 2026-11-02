@@ -8,9 +8,11 @@ No API key. Downloads, then caches under data/.cache/ (gitignored):
 - Shares outstanding from SEC companyfacts-style concept filings
 - A current quote, used only when SEC shares disagree with the live market cap
 
-Each month from Nov 2011 through the latest complete price month contributes
+Each month from January 1996 through the latest complete price month contributes
 one real session. Prices are unadjusted closes. Market caps are reconstructed
 so the tape can be sorted largest to smallest; they are not shown in the game.
+Before SEC share counts exist (roughly 2009), the sort uses today's market cap
+scaled by the split-adjusted price, and delisted tickers are often missing.
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ import urllib.parse
 import urllib.request
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -72,7 +74,9 @@ ALLOWED_FORMS = {
 }
 COMMON_SPLITS = {2, 3, 4, 5, 7, 8, 10, 15, 20, 25, 50}
 MAX_SHARE_AGE_DAYS = 550
-START = date(2011, 11, 1)
+START = date(1996, 1, 1)
+PRICE_FROM = "1996-01-01"
+PRICE_FROM_STAMP = "19960101000000"
 
 # Date bounds are exclusive on the right. Only renames that are easy to misread.
 RENAMES = (
@@ -295,6 +299,12 @@ def display_name(ticker: str, day: str, quote_name: str | None) -> str:
 
 
 def era_ceiling(day: date) -> float:
+    # Before 2008 the only reconstructed caps above this line were the reused
+    # ticker C (today's Citigroup) sitting near $1T. Real leaders were lower.
+    if day < date(2008, 1, 1):
+        return 650e9
+    if day < date(2012, 1, 1):
+        return 1.2e12
     if day < date(2018, 8, 1):
         return 1.8e12
     if day < date(2020, 8, 1):
@@ -392,24 +402,11 @@ def price_cache_path(symbol: str) -> Path:
     return CACHE / "prices" / f"{symbol.replace('/', '_')}.json"
 
 
-def fetch_prices(symbol: str) -> dict:
-    cache = price_cache_path(symbol)
-    cached = cache_json(cache)
-    if cached is not None:
-        return cached
-    url = (
-        "https://ts-api.cnbc.com/harmony/app/bars/"
-        f"{urllib.parse.quote(symbol, safe='.')}/1D/"
-        "20111101000000/20261102000000/unadjusted/EST5EDT.json"
-    )
-    try:
-        raw = http_get(url, {"User-Agent": BROWSER_UA, "Accept": "application/json", "Referer": "https://www.cnbc.com/"})
-        payload = json.loads(raw)
-    except NotFound:
-        payload = {"status": "ERROR", "statusMessage": "not found"}
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ConnectionError) as exc:
-        print(f"price {symbol} failed: {exc}", flush=True)
-        return {"missing": True, "bars": {}}
+def price_end_stamp() -> str:
+    return date.today().strftime("%Y%m%d") + "000000"
+
+
+def parse_price_bars(payload: dict) -> tuple[dict[str, float], str]:
     bars_out = (payload.get("barData") or {}).get("priceBars") or []
     message = (payload.get("statusMessage") or "").lower()
     bars: dict[str, float] = {}
@@ -423,16 +420,78 @@ def fetch_prices(symbol: str) -> dict:
             continue
         if close > 0:
             bars[f"{stamp[0:4]}-{stamp[4:6]}-{stamp[6:8]}"] = round(close, 4)
+    return bars, message
+
+
+def fetch_bar_window(symbol: str, start_stamp: str, end_stamp: str) -> tuple[str, dict[str, float]]:
+    url = (
+        "https://ts-api.cnbc.com/harmony/app/bars/"
+        f"{urllib.parse.quote(symbol, safe='.')}/1D/"
+        f"{start_stamp}/{end_stamp}/unadjusted/EST5EDT.json"
+    )
+    try:
+        raw = http_get(
+            url,
+            {"User-Agent": BROWSER_UA, "Accept": "application/json", "Referer": "https://www.cnbc.com/"},
+        )
+        payload = json.loads(raw)
+    except NotFound:
+        return "missing", {}
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ConnectionError) as exc:
+        print(f"price {symbol} failed: {exc}", flush=True)
+        return "error", {}
+    bars, message = parse_price_bars(payload)
     if bars:
-        data = {"missing": False, "bars": bars}
-        atomic_write(cache, json.dumps(data, separators=(",", ":")))
-        return data
+        return "ok", bars
     if "not found" in message or "security master" in message:
-        data = {"missing": True, "bars": {}}
-        atomic_write(cache, json.dumps(data, separators=(",", ":")))
-        return data
-    print(f"price {symbol} came back empty; not caching", flush=True)
-    return {"missing": True, "bars": {}}
+        return "missing", {}
+    return "empty", {}
+
+
+def store_prices(cache: Path, data: dict) -> dict:
+    atomic_write(cache, json.dumps(data, separators=(",", ":")))
+    return data
+
+
+def fetch_prices(symbol: str, limiter: Limiter | None = None) -> dict:
+    """Daily closes from 1996 on. An older cache that starts in 2011 is backfilled, not discarded."""
+    cache = price_cache_path(symbol)
+    cached = cache_json(cache)
+    if cached and cached.get("from") == PRICE_FROM:
+        return cached
+
+    def online(start_stamp: str, end_stamp: str) -> tuple[str, dict[str, float]]:
+        if limiter is not None:
+            limiter.wait()
+        return fetch_bar_window(symbol, start_stamp, end_stamp)
+
+    if cached and cached.get("missing"):
+        return store_prices(cache, {"missing": True, "from": PRICE_FROM, "bars": {}})
+
+    bars: dict[str, float] = {}
+    if cached:
+        bars = dict(cached.get("bars") or {})
+
+    if bars:
+        first = min(bars)
+        if first > PRICE_FROM:
+            end_day = date.fromisoformat(first) - timedelta(days=1)
+            status, older = online(PRICE_FROM_STAMP, end_day.strftime("%Y%m%d") + "000000")
+            if status == "error":
+                print(f"price {symbol} early window failed; keeping cached bars", flush=True)
+                return {"missing": False, "bars": bars}
+            bars.update(older)
+    else:
+        status, fetched = online(PRICE_FROM_STAMP, price_end_stamp())
+        if status == "error":
+            return {"missing": True, "bars": {}}
+        if status == "missing":
+            return store_prices(cache, {"missing": True, "from": PRICE_FROM, "bars": {}})
+        bars = fetched
+
+    if not bars:
+        return store_prices(cache, {"missing": True, "from": PRICE_FROM, "bars": {}})
+    return store_prices(cache, {"missing": False, "from": PRICE_FROM, "bars": bars})
 
 
 def series_from_facts(facts: list[dict]) -> list[list]:
@@ -629,8 +688,8 @@ def top_line(rows: list[dict], n: int = 8) -> str:
 
 
 def validate(snapshots: list[dict]) -> None:
-    if len(snapshots) < 160:
-        raise SystemExit(f"only {len(snapshots)} sessions, expected a full run of months")
+    if len(snapshots) < 340:
+        raise SystemExit(f"only {len(snapshots)} sessions, expected a month from 1996 through the latest year")
     months = Counter(item["date"][5:7] for item in snapshots)
     missing = [f"{i:02d}" for i in range(1, 13) if months[f"{i:02d}"] < 8]
     if missing:
@@ -641,8 +700,20 @@ def validate(snapshots: list[dict]) -> None:
         f"{min(counts)}/{sorted(counts)[len(counts)//2]}/{max(counts)}",
         flush=True,
     )
-    if min(counts) < 220:
-        raise SystemExit("a session has fewer than 220 priced names")
+    by_year: dict[str, list[int]] = defaultdict(list)
+    for item in snapshots:
+        by_year[item["date"][:4]].append(len(item["rows"]))
+    thin_years = []
+    for year in sorted(by_year):
+        vals = sorted(by_year[year])
+        median = vals[len(vals) // 2]
+        print(f"coverage {year} sessions={len(vals)} names {vals[0]}/{median}/{vals[-1]}", flush=True)
+        if vals[0] < 180 or len(vals) < 6:
+            thin_years.append(year)
+    if thin_years:
+        print(f"thin years: {', '.join(thin_years)}", flush=True)
+    if min(counts) < 100:
+        raise SystemExit("a session has fewer than 100 priced names")
 
     def nearest(target: date) -> dict:
         return min(snapshots, key=lambda item: abs((date.fromisoformat(item["date"]) - target).days))
@@ -664,6 +735,13 @@ def validate(snapshots: list[dict]) -> None:
                 f"{name} on {snap['date']} looks wrong: price {match['price']} "
                 f"mcap {match['mcap']:.3g} rank {rank} source {match['source']}"
             )
+    early = nearest(date(1998, 6, 15))
+    early_top = [row["name"] for row in sorted(early["rows"], key=lambda row: -row["mcap"])[:25]]
+    print(f"check 1998 via {early['date']}: {top_line(early['rows'])}", flush=True)
+    needles = ("Microsoft", "GE", "Exxon", "Intel", "Coca", "Walmart", "IBM", "Merck")
+    if not any(any(needle in name for needle in needles) for name in early_top):
+        raise SystemExit(f"1998 leaders look wrong: {early_top[:8]}")
+
     recent = nearest(date(2024, 11, 15))
     recent_top = [row["name"] for row in sorted(recent["rows"], key=lambda row: -row["mcap"])[:3]]
     print(f"check 2024 via {recent['date']}: {top_line(recent['rows'])}", flush=True)
@@ -741,7 +819,9 @@ def self_test() -> None:
 def build(workers: int) -> None:
     history = download_constituents()
     sec_map = download_sec_tickers()
-    aapl = fetch_prices("AAPL")
+    cnbc_limit = Limiter(8)
+    sec_limit = Limiter(6)
+    aapl = fetch_prices("AAPL", cnbc_limit)
     if not aapl.get("bars"):
         raise SystemExit("could not load AAPL prices; CNBC may be blocking this machine")
     sessions = pick_sessions(aapl["bars"])
@@ -752,14 +832,8 @@ def build(workers: int) -> None:
     price_symbols = sorted({PRICE_SYMBOL.get(ticker, ticker) for ticker in tickers})
     print(f"tickers {len(tickers)} price symbols {len(price_symbols)}", flush=True)
 
-    cnbc_limit = Limiter(8)
-    sec_limit = Limiter(6)
-
     def price_worker(symbol: str) -> dict:
-        if price_cache_path(symbol).exists():
-            return fetch_prices(symbol)
-        cnbc_limit.wait()
-        return fetch_prices(symbol)
+        return fetch_prices(symbol, cnbc_limit)
 
     prices = run_pool(price_symbols, price_worker, workers, "prices")
     priced = sum(1 for item in prices.values() if item.get("bars"))
@@ -783,6 +857,7 @@ def build(workers: int) -> None:
 
     snapshots = []
     source_counts = Counter()
+    era_sources = Counter()
     drop_counts = Counter()
     for day in sessions:
         iso = day.isoformat()
@@ -828,8 +903,9 @@ def build(workers: int) -> None:
                     row["mcap"] /= len(group)
         kept = []
         ceiling = era_ceiling(day)
+        floor = 1.5e8 if day < date(2004, 1, 1) else 4e8
         for row in draft:
-            if row["mcap"] < 4e8 or row["mcap"] > ceiling:
+            if row["mcap"] < floor or row["mcap"] > ceiling:
                 drop_counts[row["ticker"]] += 1
                 continue
             kept.append(row)
@@ -838,11 +914,14 @@ def build(workers: int) -> None:
             if names[row["name"]] > 1:
                 row["name"] = f"{row['name']} ({row['ticker']})"
         kept.sort(key=lambda row: (-row["mcap"], row["name"]))
+        era = "pre-2011" if iso < "2011-11-01" else "2011-on"
         for row in kept:
             source_counts[row["source"]] += 1
+            era_sources[f"{era} {row['source']}"] += 1
         snapshots.append({"date": iso, "rows": kept})
 
     print(f"mcap sources {dict(source_counts)}", flush=True)
+    print(f"mcap by era {dict(era_sources)}", flush=True)
     print("most often dropped:", ", ".join(f"{name}×{n}" for name, n in drop_counts.most_common(18)), flush=True)
     validate(snapshots)
 
