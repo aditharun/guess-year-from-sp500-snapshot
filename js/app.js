@@ -303,12 +303,16 @@
     statusEl.textContent = message || "";
   }
 
+  function asSessionId(id) {
+    return typeof id === "string" && /^[a-f0-9]{16}$/.test(id) ? id : null;
+  }
+
   async function loadSnapshot(id) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(id)) throw new Error("Bad session id");
+    if (!asSessionId(id)) throw new Error("Bad session id");
     var response = await fetch(asset("data/snapshots/" + id + ".json"));
     if (!response.ok) throw new Error("Session " + response.status);
     var payload = await response.json();
-    if (!payload || typeof payload.d !== "string" || !Array.isArray(payload.rows)) {
+    if (!payload || typeof payload.d !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(payload.d) || !parseISODate(payload.d) || !Array.isArray(payload.rows)) {
       throw new Error("Session was unreadable");
     }
     var rows = [];
@@ -420,13 +424,15 @@
     if (!response.ok) throw new Error("Manifest " + response.status);
     var manifest = await response.json();
     var ids = Array.isArray(manifest.snapshots) ? manifest.snapshots : [];
-    state.ids = ids.filter(function (id) { return /^\d{4}-\d{2}-\d{2}$/.test(id); });
+    state.ids = ids.map(asSessionId).filter(Boolean);
     if (!state.ids.length) throw new Error("No sessions");
-    var seen = {};
-    state.ids.forEach(function (id) { seen[Number(id.slice(0, 4))] = true; });
-    var sessionYears = Object.keys(seen).map(Number).sort(function (a, b) { return a - b; });
-    state.yearMin = sessionYears[0];
-    state.yearMax = sessionYears[sessionYears.length - 1];
+    var yearMin = Number(manifest.yearMin);
+    var yearMax = Number(manifest.yearMax);
+    if (!Number.isInteger(yearMin) || !Number.isInteger(yearMax) || yearMin < 1900 || yearMax > 2100 || yearMax < yearMin || yearMax - yearMin > 80) {
+      throw new Error("Bad year range");
+    }
+    state.yearMin = yearMin;
+    state.yearMax = yearMax;
     yearHint.textContent = "Pick a year from " + state.yearMin + " through " + state.yearMax + ".";
     yearNote.textContent = "Stay between " + state.yearMin + " and " + state.yearMax + ".";
     await deal();

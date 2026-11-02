@@ -7,6 +7,8 @@ No API key. Downloads, then caches under data/.cache/ (gitignored):
 - Unadjusted daily closes from CNBC's public chart endpoint
 - Shares outstanding from SEC companyfacts-style concept filings
 - A current quote, used only when SEC shares disagree with the live market cap
+- session_ids.json, the date-to-filename map. It stays out of git so published
+  filenames do not spell the session date.
 
 Each month from January 1996 through the latest complete price month contributes
 one real session. Prices are unadjusted closes. Market caps are reconstructed
@@ -22,6 +24,7 @@ import csv
 import hashlib
 import json
 import re
+import secrets
 import statistics
 import threading
 import time
@@ -36,6 +39,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / "data" / ".cache"
 SNAP_DIR = ROOT / "data" / "snapshots"
+ID_MAP_PATH = CACHE / "session_ids.json"
+SESSION_ID_RE = re.compile(r"^[a-f0-9]{16}$")
 
 CONSTITUENTS_URL = (
     "https://raw.githubusercontent.com/fja05680/sp500/master/"
@@ -166,6 +171,35 @@ def http_get(url: str, headers: dict, timeout: int = 60, attempts: int = 5) -> b
                 continue
             raise
     raise RuntimeError(f"failed {url}") from last_error
+
+
+def load_session_ids() -> dict[str, str]:
+    data = cache_json(ID_MAP_PATH)
+    if not isinstance(data, dict):
+        return {}
+    return {
+        iso: sid
+        for iso, sid in data.items()
+        if isinstance(iso, str) and isinstance(sid, str) and SESSION_ID_RE.fullmatch(sid)
+    }
+
+
+def assign_session_id(iso: str, mapping: dict[str, str]) -> str:
+    """Stable opaque file id for one session date. The date is not recoverable from the id."""
+    current = mapping.get(iso)
+    if isinstance(current, str) and SESSION_ID_RE.fullmatch(current):
+        if sum(1 for sid in mapping.values() if sid == current) == 1:
+            return current
+    used = set(mapping.values())
+    while True:
+        fresh = secrets.token_hex(8)
+        if fresh not in used:
+            mapping[iso] = fresh
+            return fresh
+
+
+def save_session_ids(mapping: dict[str, str]) -> None:
+    atomic_write(ID_MAP_PATH, json.dumps(mapping, indent=2, sort_keys=True) + "\n")
 
 
 def atomic_write(path: Path, text: str) -> None:
@@ -763,6 +797,12 @@ def validate(snapshots: list[dict]) -> None:
 
 
 def self_test() -> None:
+    mapping: dict[str, str] = {}
+    first = assign_session_id("2019-07-08", mapping)
+    again = assign_session_id("2019-07-08", mapping)
+    other = assign_session_id("2020-01-02", mapping)
+    assert first == again and first != other
+    assert SESSION_ID_RE.fullmatch(first) and SESSION_ID_RE.fullmatch(other)
     assert parse_cnbc_magnitude("4,914,444.17M") == 4_914_444.17 * 1e6
     assert abs(parse_cnbc_magnitude("14,594.18M") - 1.459418e10) < 1
     assert clean_name("Apple Inc.") == "Apple"
@@ -925,6 +965,10 @@ def build(workers: int) -> None:
     print("most often dropped:", ", ".join(f"{name}×{n}" for name, n in drop_counts.most_common(18)), flush=True)
     validate(snapshots)
 
+    id_map = load_session_ids()
+    for snap in snapshots:
+        snap["id"] = assign_session_id(snap["date"], id_map)
+    save_session_ids(id_map)
     if SNAP_DIR.exists():
         for old in SNAP_DIR.glob("*.json"):
             old.unlink()
@@ -938,14 +982,15 @@ def build(workers: int) -> None:
             ],
         }
         atomic_write(
-            SNAP_DIR / f"{snap['date']}.json",
+            SNAP_DIR / f"{snap['id']}.json",
             json.dumps(payload, separators=(",", ":"), ensure_ascii=False),
         )
+    years = sorted({int(snap["date"][:4]) for snap in snapshots})
     manifest = {
         "game": "the-tape",
-        "from": snapshots[0]["date"],
-        "to": snapshots[-1]["date"],
-        "snapshots": [snap["date"] for snap in snapshots],
+        "yearMin": years[0],
+        "yearMax": years[-1],
+        "snapshots": sorted(snap["id"] for snap in snapshots),
         "built": date.today().isoformat(),
     }
     atomic_write(ROOT / "data" / "manifest.json", json.dumps(manifest, indent=2) + "\n")
