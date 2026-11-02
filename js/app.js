@@ -309,7 +309,7 @@
 
   async function loadSnapshot(id) {
     if (!asSessionId(id)) throw new Error("Bad session id");
-    var response = await fetch(asset("data/snapshots/" + id + ".json"));
+    var response = await fetch(asset("data/snapshots/" + id + ".json"), { cache: "no-cache" });
     if (!response.ok) throw new Error("Session " + response.status);
     var payload = await response.json();
     if (!payload || typeof payload.d !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(payload.d) || !parseISODate(payload.d) || !Array.isArray(payload.rows)) {
@@ -420,7 +420,7 @@
   });
 
   async function init() {
-    var response = await fetch(asset("data/manifest.json"));
+    var response = await fetch(asset("data/manifest.json"), { cache: "no-cache" });
     if (!response.ok) throw new Error("Manifest " + response.status);
     var manifest = await response.json();
     var ids = Array.isArray(manifest.snapshots) ? manifest.snapshots : [];
