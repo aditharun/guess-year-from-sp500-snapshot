@@ -27,10 +27,14 @@ body {
 }
 
 .sheet {
+  position: fixed;
+  top: var(--vv-top, 0px);
+  left: 50%;
+  transform: translateX(-50%);
   width: min(720px, 100%);
-  margin: 0 auto;
-  height: 100dvh;
-  max-height: 100dvh;
+  margin: 0;
+  height: var(--vv-height, 100dvh);
+  max-height: var(--vv-height, 100dvh);
   background: var(--paper);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -137,10 +141,23 @@ main {
 .dock {
   position: relative;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 70%;
+  overflow: hidden;
   border-top: 1px solid var(--ink);
   background: var(--paper);
   padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
 }
+
+#pickers {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#pickers[hidden] { display: none; }
 
 .year-hint {
   display: block;
@@ -153,6 +170,10 @@ main {
 
 .year-field {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
 }
 
 #year {
@@ -182,6 +203,8 @@ main {
 }
 
 .year-list {
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: min(180px, 32dvh);
   margin: 4px 0 0;
   padding: 4px;
@@ -190,6 +213,8 @@ main {
   border: 1px solid var(--ink);
   background: var(--paper);
 }
+
+.year-list[hidden] { display: none; }
 
 .year-list button {
   display: block;
@@ -219,6 +244,14 @@ main {
 }
 
 .year-note[hidden] { display: none; }
+
+#lock,
+#again,
+#year,
+.year-hint,
+.year-note {
+  flex: none;
+}
 
 #lock,
 #again {
@@ -287,10 +320,10 @@ main {
 }
 
 @media (min-width: 760px) {
-  body { padding: 28px 16px; }
   .sheet {
-    height: calc(100dvh - 56px);
-    max-height: calc(100dvh - 56px);
+    top: calc(var(--vv-top, 0px) + 28px);
+    height: calc(var(--vv-height, 100dvh) - 56px);
+    max-height: calc(var(--vv-height, 100dvh) - 56px);
     border-left: 1px solid var(--ink);
     border-right: 1px solid var(--ink);
   }

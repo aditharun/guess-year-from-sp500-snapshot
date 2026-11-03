@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#f3eee4">
   <meta name="description" content="Guess the year of a real S&amp;P 500 session from the companies and their share prices.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
@@ -29,7 +29,7 @@
       <div id="pickers">
         <label class="year-hint" id="year-hint" for="year">Pick a year from 1996 through 2026.</label>
         <div class="year-field">
-          <input id="year" name="tape-year" type="text" inputmode="numeric" maxlength="4" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="Type a year" aria-autocomplete="list" aria-controls="year-list" aria-expanded="false" role="combobox">
+          <input id="year" name="tape-year" type="text" inputmode="numeric" maxlength="4" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="Type a year" aria-autocomplete="list" aria-controls="year-list" aria-expanded="false" role="combobox">
           <div id="year-list" class="year-list" role="listbox" hidden></div>
         </div>
         <p class="year-note" id="year-note" hidden>Stay between 1996 and 2026.</p>
@@ -46,6 +46,6 @@
   <noscript>
     <p class="noscript">This page needs JavaScript to deal a session. It stays on this page and does not load remote code.</p>
   </noscript>
-  <script src="js/app.js?v=2"></script>
+  <script src="js/app.js?v=3"></script>
 </body>
 </html>

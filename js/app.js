@@ -241,14 +241,17 @@
     renderList();
   }
 
-  function chooseYear(year) {
-    if (!inRange(year) || state.locked) return;
+  function submitGuess(year) {
+    if (year == null) year = parseYear(yearInput.value);
+    if (!inRange(year) || state.locked || !state.iso) return;
     yearInput.value = String(year);
     state.year = year;
     yearInput.setAttribute("aria-invalid", "false");
     yearNote.hidden = true;
     closeList();
     syncLock();
+    yearInput.blur();
+    reveal();
   }
 
   function moveActive(step) {
@@ -381,17 +384,42 @@
       closeList();
       return;
     }
-    if (event.key === "Enter" && !yearList.hidden && state.activeYear !== null && parseYear(yearInput.value) === null) {
-      event.preventDefault();
-      chooseYear(state.activeYear);
-    }
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    var typed = parseYear(yearInput.value);
+    var year = typed !== null ? typed : (yearList.hidden ? null : state.activeYear);
+    if (year === null) return;
+    submitGuess(year);
   });
+
+  var armedSuggestion = null;
 
   yearList.addEventListener("pointerdown", function (event) {
     var option = event.target.closest("button");
     if (!option) return;
     event.preventDefault();
-    chooseYear(Number(option.dataset.year));
+    armedSuggestion = {
+      year: Number(option.dataset.year),
+      x: event.clientX,
+      y: event.clientY,
+      id: event.pointerId
+    };
+    if (event.isTrusted) {
+      try { yearList.setPointerCapture(event.pointerId); } catch (err) { /* not a capturable pointer */ }
+    }
+  });
+
+  yearList.addEventListener("pointerup", function (event) {
+    if (!armedSuggestion || event.pointerId !== armedSuggestion.id) return;
+    var year = armedSuggestion.year;
+    var dragged = Math.abs(event.clientX - armedSuggestion.x) > 12 || Math.abs(event.clientY - armedSuggestion.y) > 12;
+    armedSuggestion = null;
+    if (dragged) return;
+    submitGuess(year);
+  });
+
+  yearList.addEventListener("pointercancel", function (event) {
+    if (armedSuggestion && event.pointerId === armedSuggestion.id) armedSuggestion = null;
   });
 
   sortButtons.forEach(function (button) {
@@ -411,9 +439,21 @@
 
   form.addEventListener("submit", function (event) {
     event.preventDefault();
-    if (state.locked || !state.year || !state.iso) return;
-    reveal();
+    submitGuess(parseYear(yearInput.value));
   });
+
+  function syncVisibleFrame() {
+    var viewport = window.visualViewport;
+    if (!viewport) return;
+    document.documentElement.style.setProperty("--vv-height", viewport.height + "px");
+    document.documentElement.style.setProperty("--vv-top", viewport.offsetTop + "px");
+  }
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", syncVisibleFrame);
+    window.visualViewport.addEventListener("scroll", syncVisibleFrame);
+    syncVisibleFrame();
+  }
 
   againBtn.addEventListener("click", function () {
     deal();
