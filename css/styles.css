@@ -17,6 +17,7 @@ html {
 
 body {
   margin: 0;
+  height: 100svh;
   height: 100dvh;
   overflow: hidden;
   background: var(--desk);
@@ -28,20 +29,22 @@ body {
 
 .sheet {
   position: fixed;
-  top: var(--vv-top, 0px);
-  bottom: var(--vv-bottom, 0px);
+  top: 0;
   left: 0;
   right: 0;
   width: min(720px, 100%);
+  height: calc(100svh - var(--keyboard-inset, 0px));
+  height: calc(100dvh - var(--keyboard-inset, 0px));
+  max-height: calc(100svh - var(--keyboard-inset, 0px));
   margin: 0 auto;
-  height: auto;
   background: var(--paper);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
 header {
+  flex: 0 0 auto;
   padding: 16px 16px 12px;
   border-bottom: 1px solid var(--ink);
 }
@@ -61,6 +64,8 @@ h1 {
 }
 
 main {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -143,9 +148,7 @@ main {
   z-index: 2;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  max-height: 70%;
-  overflow: hidden;
+  flex: 0 0 auto;
   border-top: 1px solid var(--ink);
   background: var(--paper);
   padding: 12px 12px 20px;
@@ -153,13 +156,12 @@ main {
   padding-bottom: calc(20px + max(env(safe-area-inset-bottom, 0px), var(--safe-bottom, 0px)));
 }
 
-#pickers {
+#pickers,
+.result {
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  flex: 0 0 auto;
 }
-
-#pickers[hidden] { display: none; }
 
 .year-hint {
   display: block;
@@ -297,7 +299,8 @@ main {
   color: var(--paper);
 }
 
-.result { padding-bottom: 2px; }
+.result[hidden],
+#pickers[hidden] { display: none; }
 
 .when {
   margin: 2px 0 0;
@@ -331,8 +334,9 @@ main {
 
 @media (min-width: 760px) {
   .sheet {
-    top: calc(var(--vv-top, 0px) + 28px);
-    bottom: calc(var(--vv-bottom, 0px) + 28px);
+    top: 28px;
+    height: calc(100dvh - 56px - var(--keyboard-inset, 0px));
+    max-height: calc(100dvh - 56px - var(--keyboard-inset, 0px));
     border-left: 1px solid var(--ink);
     border-right: 1px solid var(--ink);
   }

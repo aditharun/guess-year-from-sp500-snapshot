@@ -239,10 +239,20 @@
     yearNote.hidden = !rejected;
     syncLock();
     if (year !== null) {
-      submitGuess(year);
+      closeList();
       return;
     }
     renderList();
+  }
+
+  function chooseYear(year) {
+    if (!inRange(year) || state.locked) return;
+    yearInput.value = String(year);
+    state.year = year;
+    yearInput.setAttribute("aria-invalid", "false");
+    yearNote.hidden = true;
+    closeList();
+    syncLock();
   }
 
   function submitGuess(year) {
@@ -389,11 +399,7 @@
       return;
     }
     if (event.key !== "Enter") return;
-    event.preventDefault();
-    var typed = parseYear(yearInput.value);
-    var year = typed !== null ? typed : (yearList.hidden ? null : state.activeYear);
-    if (year === null) return;
-    submitGuess(year);
+    if (parseYear(yearInput.value) === null) event.preventDefault();
   });
 
   var armedSuggestion = null;
@@ -419,7 +425,7 @@
     var dragged = Math.abs(event.clientX - armedSuggestion.x) > 12 || Math.abs(event.clientY - armedSuggestion.y) > 12;
     armedSuggestion = null;
     if (dragged) return;
-    submitGuess(year);
+    chooseYear(year);
   });
 
   yearList.addEventListener("pointercancel", function (event) {
@@ -448,11 +454,9 @@
 
   function syncVisibleFrame() {
     var viewport = window.visualViewport;
-    var top = viewport ? viewport.offsetTop : 0;
-    var height = viewport ? viewport.height : window.innerHeight;
-    var keyboard = Math.max(0, window.innerHeight - top - height);
-    document.documentElement.style.setProperty("--vv-top", top + "px");
-    document.documentElement.style.setProperty("--vv-bottom", keyboard + "px");
+    var inset = 0;
+    if (viewport) inset = Math.max(0, window.innerHeight - viewport.offsetTop - viewport.height);
+    document.documentElement.style.setProperty("--keyboard-inset", inset + "px");
   }
 
   if (window.visualViewport) {
