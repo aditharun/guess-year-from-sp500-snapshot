@@ -238,6 +238,10 @@
     yearInput.setAttribute("aria-invalid", rejected ? "true" : "false");
     yearNote.hidden = !rejected;
     syncLock();
+    if (year !== null) {
+      submitGuess(year);
+      return;
+    }
     renderList();
   }
 
@@ -444,9 +448,11 @@
 
   function syncVisibleFrame() {
     var viewport = window.visualViewport;
-    if (!viewport) return;
-    document.documentElement.style.setProperty("--vv-height", viewport.height + "px");
-    document.documentElement.style.setProperty("--vv-top", viewport.offsetTop + "px");
+    var top = viewport ? viewport.offsetTop : 0;
+    var height = viewport ? viewport.height : window.innerHeight;
+    var keyboard = Math.max(0, window.innerHeight - top - height);
+    document.documentElement.style.setProperty("--vv-top", top + "px");
+    document.documentElement.style.setProperty("--vv-bottom", keyboard + "px");
   }
 
   if (window.visualViewport) {
