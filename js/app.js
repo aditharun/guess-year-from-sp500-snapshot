@@ -223,10 +223,10 @@
     yearInput.setAttribute("aria-activedescendant", "year-opt-" + state.activeYear);
     var active = document.getElementById("year-opt-" + state.activeYear);
     if (!active) return;
-    if (active.offsetTop < yearList.scrollTop) yearList.scrollTop = active.offsetTop;
-    else if (active.offsetTop + active.offsetHeight > yearList.scrollTop + yearList.clientHeight) {
-      yearList.scrollTop = active.offsetTop + active.offsetHeight - yearList.clientHeight;
-    }
+    var listRect = yearList.getBoundingClientRect();
+    var itemRect = active.getBoundingClientRect();
+    if (itemRect.top < listRect.top) yearList.scrollTop -= listRect.top - itemRect.top;
+    else if (itemRect.bottom > listRect.bottom) yearList.scrollTop += itemRect.bottom - listRect.bottom;
   }
 
   function applyInput() {
@@ -473,8 +473,9 @@
     }
     state.yearMin = yearMin;
     state.yearMax = yearMax;
-    yearHint.textContent = "Pick a year from " + state.yearMin + " through " + state.yearMax + ".";
-    yearNote.textContent = "Stay between " + state.yearMin + " and " + state.yearMax + ".";
+    var span = state.yearMin + "–" + state.yearMax;
+    yearHint.textContent = span;
+    yearNote.textContent = span + " only";
     await deal();
   }
 

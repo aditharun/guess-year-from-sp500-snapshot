@@ -8,7 +8,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
   <title>Guess the year from the S&amp;P 500 tape</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=4">
 </head>
 <body>
   <div class="sheet">
@@ -27,13 +27,15 @@
     </main>
     <form id="guess" class="dock" autocomplete="off">
       <div id="pickers">
-        <label class="year-hint" id="year-hint" for="year">Pick a year from 1996 through 2026.</label>
-        <div class="year-field">
-          <input id="year" name="tape-year" type="text" inputmode="numeric" maxlength="4" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="Type a year" aria-autocomplete="list" aria-controls="year-list" aria-expanded="false" role="combobox">
-          <div id="year-list" class="year-list" role="listbox" hidden></div>
+        <label class="year-hint" id="year-hint" for="year">1996–2026</label>
+        <div class="guess-row">
+          <div class="year-field">
+            <input id="year" name="tape-year" type="text" inputmode="numeric" maxlength="4" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="Year" aria-autocomplete="list" aria-controls="year-list" aria-expanded="false" role="combobox">
+          </div>
+          <button type="submit" id="lock" disabled>Enter</button>
         </div>
-        <p class="year-note" id="year-note" hidden>Stay between 1996 and 2026.</p>
-        <button type="submit" id="lock" disabled>Submit</button>
+        <div id="year-list" class="year-list" role="listbox" hidden></div>
+        <p class="year-note" id="year-note" hidden>1996–2026 only</p>
       </div>
       <div id="result" class="result" hidden>
         <p class="when" id="result-when"></p>
@@ -46,6 +48,6 @@
   <noscript>
     <p class="noscript">This page needs JavaScript to deal a session. It stays on this page and does not load remote code.</p>
   </noscript>
-  <script src="js/app.js?v=3"></script>
+  <script src="js/app.js?v=4"></script>
 </body>
 </html>
