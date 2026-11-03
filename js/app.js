@@ -258,13 +258,14 @@
   function submitGuess(year) {
     if (year == null) year = parseYear(yearInput.value);
     if (!inRange(year) || state.locked || !state.iso) return;
+    state.locked = true;
     yearInput.value = String(year);
     state.year = year;
     yearInput.setAttribute("aria-invalid", "false");
     yearNote.hidden = true;
     closeList();
     syncLock();
-    yearInput.blur();
+    if (document.activeElement === yearInput) yearInput.blur();
     reveal();
   }
 
@@ -383,8 +384,24 @@
     renderList();
   });
 
-  yearInput.addEventListener("blur", function () {
+  var suppressBlurSubmit = false;
+  var suppressBlurTimer = 0;
+
+  function holdBlurSubmit() {
+    suppressBlurSubmit = true;
+    clearTimeout(suppressBlurTimer);
+    suppressBlurTimer = setTimeout(function () {
+      suppressBlurSubmit = false;
+    }, 300);
+  }
+
+  yearInput.addEventListener("blur", function (event) {
     closeList();
+    if (state.locked || suppressBlurSubmit) return;
+    var next = event.relatedTarget;
+    if (next && yearList.contains(next)) return;
+    if (parseYear(yearInput.value) === null) return;
+    submitGuess(parseYear(yearInput.value));
   });
 
   yearInput.addEventListener("keydown", function (event) {
@@ -404,10 +421,17 @@
 
   var armedSuggestion = null;
 
+  yearList.addEventListener("mousedown", function (event) {
+    if (!event.target.closest("button")) return;
+    event.preventDefault();
+    holdBlurSubmit();
+  });
+
   yearList.addEventListener("pointerdown", function (event) {
     var option = event.target.closest("button");
     if (!option) return;
     event.preventDefault();
+    holdBlurSubmit();
     armedSuggestion = {
       year: Number(option.dataset.year),
       x: event.clientX,
